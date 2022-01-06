@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using RimWorld;
 using Verse;
 
@@ -7,6 +8,23 @@ namespace MarketValuePer
 {
     public static class ShipDebugTools
     {
+        private static readonly List<Message> _liveMessages = AccessTools.StaticFieldRefAccess<List<Message>>(typeof(Messages), "liveMessages");
+
+        private static void ResetMessages(Message[] messagesFromBefore)
+        {
+            _liveMessages.Clear();
+            _liveMessages.AddRange(messagesFromBefore);
+        }
+
+        private static void ResetLetters(HashSet<Letter> lettersToKeep)
+        {
+            foreach (var letter in Find.LetterStack.LettersListForReading.ToArray())
+            {
+                if (!lettersToKeep.Contains(letter))
+                    Find.LetterStack.RemoveLetter(letter);
+            }
+        }
+
         [DebugAction("Spawning", "Spawn Ships Until X", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.PlayingOnMap)]
         public static void SpawnShipsUntil()
         {
@@ -20,6 +38,9 @@ namespace MarketValuePer
                     {
                         thingOptions.Add(new DebugMenuOption(desiredDef.defName, DebugMenuOptionMode.Action, delegate()
                         {
+                            var messagesFromBefore = _liveMessages.ToArray();
+                            var lettersFromBefore = Find.LetterStack.LettersListForReading.ToHashSet();
+
                             var i = 0;
                             for (; i < 500; i++)
                             {
@@ -35,12 +56,17 @@ namespace MarketValuePer
                                 {
                                     if (ship.Goods.Any(t => t.def == desiredDef))
                                     {
-                                        Log.Message($"Found good ship after {i + 1} spawns.");
+                                        ResetMessages(messagesFromBefore);
+                                        ResetLetters(lettersFromBefore);
+                                        Messages.Message($"Found good ship after {i + 1} spawns.", MessageTypeDefOf.SituationResolved);
                                         return;
                                     }
                                 }
                             }
-                            Log.Error($"Couldn't find ship after {i + 1} spawns.");
+                            
+                            ResetMessages(messagesFromBefore);
+                            ResetLetters(lettersFromBefore);
+                            Messages.Message($"Couldn't find ship after {i + 1} spawns.", MessageTypeDefOf.NegativeEvent);
                         }));
                     }
 
