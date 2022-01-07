@@ -9,7 +9,10 @@ namespace MarketValuePer
         {
             if (req.BuildableDef != null)
             {
-                var marketValue = req.BuildableDef.GetStatValueAbstract(StatDefOf.MarketValue, req.StuffDef);
+                var marketValue = req.HasThing 
+                    ? req.Thing.GetStatValue(StatDefOf.MarketValue) 
+                    : req.BuildableDef.GetStatValueAbstract(StatDefOf.MarketValue, req.StuffDef);
+
                 var work = Mathf.Max(req.BuildableDef.GetStatValueAbstract(StatDefOf.WorkToMake, req.StuffDef), req.BuildableDef.GetStatValueAbstract(StatDefOf.WorkToBuild, req.StuffDef));
 
                 return marketValue / work;

@@ -8,7 +8,9 @@ namespace MarketValuePer
 		{
             if (req.BuildableDef != null)
             {
-                var marketValue = req.BuildableDef.GetStatValueAbstract(StatDefOf.MarketValue, req.StuffDef);
+                var marketValue = req.HasThing 
+                    ? req.Thing.GetStatValue(StatDefOf.MarketValue) 
+                    : req.BuildableDef.GetStatValueAbstract(StatDefOf.MarketValue, req.StuffDef);
 
                 var ingredientCost = 0f;
                 if (req.BuildableDef.CostList != null)
