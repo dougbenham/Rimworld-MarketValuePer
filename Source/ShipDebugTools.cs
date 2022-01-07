@@ -77,7 +77,7 @@ namespace MarketValuePer
             var lettersFromBefore = Find.LetterStack.LettersListForReading.ToHashSet();
 
             var i = 0;
-            for (; i < 500; i++)
+            for (; i < 1000; i++)
             {
                 foreach (var ship in Find.CurrentMap.passingShipManager.passingShips.ToArray())
                     ship.Depart();
