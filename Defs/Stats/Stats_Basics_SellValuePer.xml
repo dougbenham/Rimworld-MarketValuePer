@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <StatDef>
+    <defName>SellValuePerIngredients</defName>
+    <label>sell value per ingredients</label>
+    <description>The sell value of an object divided by the cost of its ingredients.</description>
+    <workerClass>SellValuePer.StatWorker_SellValuePerIngredients</workerClass>
+    <category>BasicsImportant</category>
+    <minValue>0</minValue>
+    <displayPriorityInCategory>2510</displayPriorityInCategory>
+    <minifiedThingInherits>true</minifiedThingInherits>
+    <toStringStyle>FloatMaxThree</toStringStyle>
+  </StatDef>
+  <StatDef>
+    <defName>SellValuePerWork</defName>
+    <label>sell value per work</label>
+    <description>The sell value of an object divided by the work required to make/build it.</description>
+    <workerClass>SellValuePer.StatWorker_SellValuePerWork</workerClass>
+    <category>BasicsImportant</category>
+    <minValue>0</minValue>
+    <displayPriorityInCategory>2510</displayPriorityInCategory>
+    <minifiedThingInherits>true</minifiedThingInherits>
+    <toStringStyle>FloatMaxThree</toStringStyle>
+  </StatDef>
+  <StatDef>
+    <defName>SellValueRating</defName>
+    <label>sell value rating</label>
+    <description>The sell value rating of an object (based on work and ingredients).</description>
+    <workerClass>SellValuePer.StatWorker_SellValueRating</workerClass>
+    <category>BasicsImportant</category>
+    <minValue>0</minValue>
+    <displayPriorityInCategory>2510</displayPriorityInCategory>
+    <minifiedThingInherits>true</minifiedThingInherits>
+    <toStringStyle>FloatMaxOne</toStringStyle>
+  </StatDef>
+</Defs>

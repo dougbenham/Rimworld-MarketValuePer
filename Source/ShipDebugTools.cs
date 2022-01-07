@@ -5,7 +5,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 
-namespace MarketValuePer
+namespace SellValuePer
 {
     public static class ShipDebugTools
     {

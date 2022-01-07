@@ -8,21 +8,21 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 
-namespace MarketValuePer
+namespace SellValuePer
 {
     [StaticConstructorOnStartup]
     static class HarmonyPatches
     {
         static HarmonyPatches()
         {
-            Log.Message("[MarketValuePer] Looking for DubsMintMenus");
+            Log.Message("[SellValuePer] Looking for DubsMintMenus");
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
             {
                 if (asm.FullName.StartsWith("DubsMintMenus"))
                 {
-                    new Harmony("doug.MarketValuePer").Patch(AccessTools.Method("DubsMintMenus.Patch_BillStack_DoListing:DoRow"), 
+                    new Harmony("doug.SellValuePer").Patch(AccessTools.Method("DubsMintMenus.Patch_BillStack_DoListing:DoRow"), 
                         transpiler: new HarmonyMethod(typeof(HarmonyPatches), nameof(Hook)));
-                    Log.Message("[MarketValuePer] Patched DubsMintMenus.Patch_BillStack_DoListing:DoRow");
+                    Log.Message("[SellValuePer] Patched DubsMintMenus.Patch_BillStack_DoListing:DoRow");
                 }
             }
         }
@@ -66,111 +66,68 @@ namespace MarketValuePer
                 {
                     yield return new CodeInstruction(OpCodes.Ldarg_0);
                     yield return new CodeInstruction(OpCodes.Ldloca_S, rectVariable);
-                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method("MarketValuePer.HarmonyPatches:AddMarketValuePer"));
+                    yield return new CodeInstruction(OpCodes.Call, AccessTools.Method("SellValuePer.HarmonyPatches:Add"));
                 }
                 yield return inst[index];
             }
         }
 
-        public static void AddMarketValuePer(RecipeDef recipe, ref Rect rect5)
+        public static void Add(RecipeDef recipe, ref Rect rect5)
         {
             try
             {
                 if (recipe.ProducedThingDef != null)
                 {
-                    var productIsStuffableWithFancy = false;
+                    ThingDef fancyStuff = null;
 
-                    var costOfIngredientsSimple = 0f;
-                    var costOfIngredientsFancy = 0f;
-                    var fancy = ThingDefOf.Steel;
-                    if (recipe.ingredients != null)
+                    float? coiLegendary_ = 0;
+                    var variables = recipe.GetVariableIngredients().ToArray();
+                    foreach (var thingDef in new[] {ThingDefOf.Gold, ThingDef.Named("DevilstrandCloth")})
                     {
-                        foreach (var ingredientCount in recipe.ingredients)
+                        if (variables.Contains(thingDef))
                         {
-                            if (ingredientCount.IsFixedIngredient)
-                            {
-                                var countRequiredOfFor = ingredientCount.CountRequiredOfFor(ingredientCount.FixedIngredient, recipe);
-                                var v = countRequiredOfFor * ingredientCount.FixedIngredient.GetStatValueAbstract(StatDefOf.MarketValue);
-                                costOfIngredientsSimple += v;
-                                costOfIngredientsFancy += v;
-                            }
-                            else
-                            {
-                                var found = false;
-                                foreach (var thingDef in new[] {ThingDef.Named("DevilstrandCloth"), ThingDefOf.Gold})
-                                {
-                                    if (ingredientCount.filter.Allows(thingDef))
-                                    {
-                                        costOfIngredientsFancy += thingDef.GetStatValueAbstract(StatDefOf.MarketValue) * ingredientCount.GetBaseCount() / thingDef.VolumePerUnit;
-                                        productIsStuffableWithFancy = true;
-                                        fancy = thingDef;
-                                        found = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!found)
-                                    costOfIngredientsFancy += 2 * ingredientCount.GetBaseCount();
-                                costOfIngredientsSimple += 2 * ingredientCount.GetBaseCount();
-                            }
+                            coiLegendary_ = recipe.GetIngredientCost(thingDef);
+                            fancyStuff = thingDef;
                         }
                     }
-
-                    var marketValueWithSimple = recipe.ProducedThingDef.GetStatValueAbstract(StatDefOf.MarketValue, ThingDefOf.Steel);
-                    var marketValueWithFancy = recipe.ProducedThingDef.GetStatValueAbstract(StatDefOf.MarketValue, fancy);
-                    var marketValueWithSimpleGood = marketValueWithSimple;
-                    var marketValueWithSimpleLegendary = marketValueWithSimple;
-                    var marketValueWithFancyGood = marketValueWithFancy;
-                    var marketValueWithFancyLegendary = marketValueWithFancy;
+                    var coiLegendary = coiLegendary_ ?? recipe.GetIngredientCost() ?? throw new ArgumentNullException();
+                    
+                    var svLegendary = recipe.ProducedThingDef.GetSellValue(fancyStuff, QualityCategory.Legendary);
                     var productHasQuality = recipe.ProducedThingDef.HasComp(typeof(CompQuality));
-                    if (productHasQuality)
-                    {
-                        StatDefOf.MarketValue.GetStatPart<StatPart_Quality>().TransformValue(StatRequest.For(recipe.ProducedThingDef, null, QualityCategory.Good), ref marketValueWithSimpleGood);
-                        StatDefOf.MarketValue.GetStatPart<StatPart_Quality>().TransformValue(StatRequest.For(recipe.ProducedThingDef, null, QualityCategory.Good), ref marketValueWithFancyGood);
-                        StatDefOf.MarketValue.GetStatPart<StatPart_Quality>().TransformValue(StatRequest.For(recipe.ProducedThingDef, null, QualityCategory.Legendary), ref marketValueWithSimpleLegendary);
-                        StatDefOf.MarketValue.GetStatPart<StatPart_Quality>().TransformValue(StatRequest.For(recipe.ProducedThingDef, null, QualityCategory.Legendary), ref marketValueWithFancyLegendary);
-                    }
+                    
+                    var vpwLegendary = svLegendary / recipe.WorkAmountTotal(null);
+                    var vpiLegendary = svLegendary / coiLegendary;
+                    var svrLegendary = Extensions.GetSellValueRating(vpiLegendary, vpwLegendary);
 
-                    var valuePerWorkWithSimpleGood = marketValueWithSimpleGood / recipe.WorkAmountTotal(null);
-                    var valuePerWorkWithFancyGood = marketValueWithFancyGood / recipe.WorkAmountTotal(null);
-                    var valuePerWorkWithSimpleLegendary = marketValueWithSimpleLegendary / recipe.WorkAmountTotal(null);
-                    var valuePerWorkWithFancyLegendary = marketValueWithFancyLegendary / recipe.WorkAmountTotal(null);
-
-                    var valuePerIngredientWithSimpleGood = marketValueWithSimpleGood / costOfIngredientsSimple;
-                    var valuePerIngredientWithFancyGood = marketValueWithFancyGood / costOfIngredientsFancy;
-                    var valuePerIngredientWithSimpleLegendary = marketValueWithSimpleLegendary / costOfIngredientsSimple;
-                    var valuePerIngredientWithFancyLegendary = marketValueWithFancyLegendary / costOfIngredientsFancy;
-
-                    if (productIsStuffableWithFancy)
+                    if (fancyStuff != null)
                         GUI.color = productHasQuality ? Color.yellow : Color.magenta;
                     else
                         GUI.color = productHasQuality ? Color.green : Color.white;
 
                     Text.Anchor = TextAnchor.UpperCenter;
-                    Widgets.Label(rect5, valuePerWorkWithSimpleGood.ToString("F3"));
+                    Widgets.Label(rect5, vpwLegendary.ToString("F3"));
+                    Text.Anchor = TextAnchor.MiddleCenter;
+                    Widgets.Label(rect5, svrLegendary.ToString("F1"));
                     Text.Anchor = TextAnchor.LowerCenter;
-                    Widgets.Label(rect5, valuePerIngredientWithSimpleGood.ToString("F3"));
+                    Widgets.Label(rect5, vpiLegendary.ToString("F3"));
                     Text.Anchor = TextAnchor.UpperLeft;
-                    if (productIsStuffableWithFancy && productHasQuality)
+                    if (variables.Length > 0 && productHasQuality)
                     {
-                        TooltipHandler.TipRegion(rect5, "Simple (steel, etc):\n\n" +
-                                                        "Value/Work if Good: " + valuePerWorkWithSimpleGood.ToString("F3") + "\n" +
-                                                        "Value/Work if Legendary: " + valuePerWorkWithSimpleLegendary.ToString("F3") + "\n" +
-                                                        "Value/Ingredient if Good: " + valuePerIngredientWithSimpleGood.ToString("F3") + "\n" +
-                                                        "Value/Ingredient if Legendary: " + valuePerIngredientWithSimpleLegendary.ToString("F3"));
-                        TooltipHandler.TipRegion(rect5, "Fancy (gold, devilstrand):\n\n" +
-                                                        "Value/Work if Good/Fancy: " + valuePerWorkWithFancyGood.ToString("F3") + "\n" +
-                                                        "Value/Work if Legendary/Fancy: " + valuePerWorkWithFancyLegendary.ToString("F3") + "\n" +
-                                                        "Value/Ingredient if Good/Fancy: " + valuePerIngredientWithFancyGood.ToString("F3") + "\n" +
-                                                        "Value/Ingredient if Legendary/Fancy: " + valuePerIngredientWithFancyLegendary.ToString("F3"));
+                        TooltipHandler.TipRegion(rect5, "Legendary:\n\n" +
+                                                        string.Join("\n", variables.Select(t =>
+                                                        {
+                                                            var sv = recipe.ProducedThingDef.GetSellValue(t, QualityCategory.Legendary);
+                                                            var vpw = sv / recipe.WorkAmountTotal(null);
+                                                            var vpi = sv / recipe.GetIngredientCost(t);
+                                                            var svr = Extensions.GetSellValueRating(vpi ?? throw new ArgumentNullException(), vpw);
+                                                            
+                                                            return $"{t.label} | SVR = {svr:F1} | VPW = {vpw:F3} | VPI = {vpi:F3}";
+                                                        })));
                     }
                     else if (productHasQuality)
-                        TooltipHandler.TipRegion(rect5, "Value/Work if Good: " + valuePerWorkWithSimpleGood.ToString("F3") + "\n" +
-                                                        "Value/Work if Legendary: " + valuePerWorkWithSimpleLegendary.ToString("F3") + "\n" +
-                                                        "Value/Ingredient if Good: " + valuePerIngredientWithSimpleGood.ToString("F3") + "\n" +
-                                                        "Value/Ingredient if Legendary: " + valuePerIngredientWithSimpleLegendary.ToString("F3"));
+                        TooltipHandler.TipRegion(rect5, $"Legendary:\n\nSVR = {svrLegendary:F1} | VPW = {vpwLegendary:F3} | VPI = {vpiLegendary:F3}");
                     else
-                        TooltipHandler.TipRegion(rect5, "Value/Work: " + valuePerWorkWithSimpleGood.ToString("F3") + "\n" + "Value/Ingredient: " + valuePerIngredientWithSimpleGood.ToString("F3"));
+                        TooltipHandler.TipRegion(rect5, $"SVR = {svrLegendary:F1} | VPW = {vpwLegendary:F3} | VPI = {vpiLegendary:F3}");
 
                     rect5.x -= rect5.width;
                     GUI.color = Color.white;
