@@ -80,7 +80,7 @@ namespace SellValuePer
                 {
                     ThingDef fancyStuff = null;
 
-                    float? coiLegendary_ = 0;
+                    float? coiLegendary_ = null;
                     var variables = recipe.GetVariableIngredients().ToArray();
                     foreach (var thingDef in new[] {ThingDefOf.Gold, ThingDef.Named("DevilstrandCloth")})
                     {
@@ -103,13 +103,9 @@ namespace SellValuePer
                         GUI.color = productHasQuality ? Color.yellow : Color.magenta;
                     else
                         GUI.color = productHasQuality ? Color.green : Color.white;
-
-                    Text.Anchor = TextAnchor.UpperCenter;
-                    Widgets.Label(rect5, vpwLegendary.ToString("F3"));
+                    
                     Text.Anchor = TextAnchor.MiddleCenter;
-                    Widgets.Label(rect5, svrLegendary.ToString("F1"));
-                    Text.Anchor = TextAnchor.LowerCenter;
-                    Widgets.Label(rect5, vpiLegendary.ToString("F3"));
+                    Widgets.Label(rect5, svrLegendary.ToString("F0"));
                     Text.Anchor = TextAnchor.UpperLeft;
                     if (variables.Length > 0 && productHasQuality)
                     {
@@ -121,13 +117,13 @@ namespace SellValuePer
                                                             var vpi = sv / recipe.GetIngredientCost(t);
                                                             var svr = Extensions.GetSellValueRating(vpi ?? throw new ArgumentNullException(), vpw);
                                                             
-                                                            return $"{t.label} | SVR = {svr:F1} | VPW = {vpw:F3} | VPI = {vpi:F3}";
+                                                            return $"{t.label} R: {svr:F1} W: {vpw:F3} I: {vpi:F3}";
                                                         })));
                     }
                     else if (productHasQuality)
-                        TooltipHandler.TipRegion(rect5, $"Legendary:\n\nSVR = {svrLegendary:F1} | VPW = {vpwLegendary:F3} | VPI = {vpiLegendary:F3}");
+                        TooltipHandler.TipRegion(rect5, $"Legendary:\n\nR: {svrLegendary:F1} | W: {vpwLegendary:F3} | I: {vpiLegendary:F3}");
                     else
-                        TooltipHandler.TipRegion(rect5, $"SVR = {svrLegendary:F1} | VPW = {vpwLegendary:F3} | VPI = {vpiLegendary:F3}");
+                        TooltipHandler.TipRegion(rect5, $"R: {svrLegendary:F1} | W: {vpwLegendary:F3} | I: {vpiLegendary:F3}");
 
                     rect5.x -= rect5.width;
                     GUI.color = Color.white;

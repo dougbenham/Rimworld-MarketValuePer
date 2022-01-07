@@ -61,8 +61,7 @@ namespace SellValuePer
         public static float? GetIngredientCost(this RecipeDef recipe, ThingDef stuff = null)
         {
             var cost = 0f;
-
-            var stuffable = false;
+            
             if (recipe.ingredients != null)
             {
                 foreach (var ingredientCount in recipe.ingredients)
@@ -75,7 +74,6 @@ namespace SellValuePer
                     }
                     else
                     {
-                        stuffable = true;
                         if (stuff == null)
                             cost += 2 * ingredientCount.GetBaseCount();
                         else
@@ -90,12 +88,7 @@ namespace SellValuePer
                     }
                 }
             }
-
-            if (stuffable != recipe.productHasIngredientStuff)
-                Log.Error("Not accurate!");
-            else
-                Log.Message("Accurate!");
-
+            
             return cost;
         }
 
@@ -143,6 +136,8 @@ namespace SellValuePer
 
         public static float GetSellValueRating(float sellValuePerIngredients, float sellValuePerWork)
         {
+            if (sellValuePerIngredients <= 1.01f) // not worth selling if you should just sell the ingredients..
+                return 0;
             return 100 * (sellValuePerIngredients * 0.25f + sellValuePerWork * 0.75f);
         }
     }
