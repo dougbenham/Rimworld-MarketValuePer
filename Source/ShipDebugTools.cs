@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
 using RimWorld;
@@ -33,40 +34,33 @@ namespace MarketValuePer
             {
                 orbitalOptions.Add(new DebugMenuOption(traderKind.label, DebugMenuOptionMode.Action, delegate()
                 {
-                    List<DebugMenuOption> thingOptions = new List<DebugMenuOption>();
+                    var thingOptions = new List<DebugMenuOption>();
                     foreach (var desiredDef in DefDatabase<ThingDef>.AllDefs.Where(def => traderKind.WillTrade(def)).OrderBy(def => def.defName))
                     {
                         thingOptions.Add(new DebugMenuOption(desiredDef.defName, DebugMenuOptionMode.Action, delegate()
                         {
-                            var messagesFromBefore = _liveMessages.ToArray();
-                            var lettersFromBefore = Find.LetterStack.LettersListForReading.ToHashSet();
-
-                            var i = 0;
-                            for (; i < 500; i++)
+                            if (desiredDef.HasComp(typeof(CompQuality)))
                             {
-                                foreach (var ship in Find.CurrentMap.passingShipManager.passingShips.ToArray())
-                                    ship.Depart();
-
-                                IncidentParms incidentParms = new IncidentParms();
-                                incidentParms.target = Find.CurrentMap;
-                                incidentParms.traderKind = traderKind;
-                                IncidentDefOf.OrbitalTraderArrival.Worker.TryExecute(incidentParms);
-
-                                foreach (var ship in Find.CurrentMap.passingShipManager.passingShips.OfType<TradeShip>())
+                                var qualityOptions = new List<DebugMenuOption>();
+                                qualityOptions.Add(new DebugMenuOption("Any", DebugMenuOptionMode.Action, delegate()
                                 {
-                                    if (ship.Goods.Any(t => t.def == desiredDef))
+                                    SpawnShipsUntil(traderKind, desiredDef, null);
+                                }));
+                                foreach (var desiredQuality in Enum.GetValues(typeof(QualityCategory)).Cast<QualityCategory>())
+                                {
+                                    if (desiredQuality == QualityCategory.Legendary) // traders can't generate legendaries
+                                        continue;
+
+                                    qualityOptions.Add(new DebugMenuOption(desiredQuality.ToString(), DebugMenuOptionMode.Action, delegate()
                                     {
-                                        ResetMessages(messagesFromBefore);
-                                        ResetLetters(lettersFromBefore);
-                                        Messages.Message($"Found good ship after {i + 1} spawns.", MessageTypeDefOf.SituationResolved);
-                                        return;
-                                    }
+                                        SpawnShipsUntil(traderKind, desiredDef, desiredQuality);
+                                    }));
                                 }
+
+                                Find.WindowStack.Add(new Dialog_DebugOptionListLister(qualityOptions));
                             }
-                            
-                            ResetMessages(messagesFromBefore);
-                            ResetLetters(lettersFromBefore);
-                            Messages.Message($"Couldn't find ship after {i + 1} spawns.", MessageTypeDefOf.NegativeEvent);
+                            else
+                                SpawnShipsUntil(traderKind, desiredDef, null);
                         }));
                     }
 
@@ -75,6 +69,39 @@ namespace MarketValuePer
             }
 
             Find.WindowStack.Add(new Dialog_DebugOptionListLister(orbitalOptions));
+        }
+
+        private static void SpawnShipsUntil(TraderKindDef traderKind, ThingDef desiredDef, QualityCategory? qualityCategory)
+        {
+            var messagesFromBefore = _liveMessages.ToArray();
+            var lettersFromBefore = Find.LetterStack.LettersListForReading.ToHashSet();
+
+            var i = 0;
+            for (; i < 500; i++)
+            {
+                foreach (var ship in Find.CurrentMap.passingShipManager.passingShips.ToArray())
+                    ship.Depart();
+
+                IncidentParms incidentParms = new IncidentParms();
+                incidentParms.target = Find.CurrentMap;
+                incidentParms.traderKind = traderKind;
+                IncidentDefOf.OrbitalTraderArrival.Worker.TryExecute(incidentParms);
+
+                foreach (var ship in Find.CurrentMap.passingShipManager.passingShips.OfType<TradeShip>())
+                {
+                    if (ship.Goods.Any(t => t.GetInnerIfMinified().def == desiredDef && (qualityCategory == null || t.TryGetComp<CompQuality>().Quality == qualityCategory)))
+                    {
+                        ResetMessages(messagesFromBefore);
+                        ResetLetters(lettersFromBefore);
+                        Messages.Message($"Found good ship after {i + 1} spawns.", MessageTypeDefOf.SituationResolved);
+                        return;
+                    }
+                }
+            }
+
+            ResetMessages(messagesFromBefore);
+            ResetLetters(lettersFromBefore);
+            Messages.Message($"Couldn't find ship after {i + 1} spawns.", MessageTypeDefOf.NegativeEvent);
         }
     }
 }
