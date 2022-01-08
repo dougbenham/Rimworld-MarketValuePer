@@ -76,7 +76,7 @@ namespace SellValuePer
         {
             try
             {
-                if (recipe.ProducedThingDef != null)
+                if (recipe.products != null && recipe.products.Count > 0)
                 {
                     ThingDef fancyStuff = null;
 
@@ -92,8 +92,8 @@ namespace SellValuePer
                     }
                     var coiLegendary = coiLegendary_ ?? recipe.GetIngredientCost() ?? throw new ArgumentNullException();
                     
-                    var svLegendary = recipe.ProducedThingDef.GetSellValue(fancyStuff, QualityCategory.Legendary);
-                    var productHasQuality = recipe.ProducedThingDef.HasComp(typeof(CompQuality));
+                    var svLegendary = recipe.products.Sum(p => p.thingDef.GetSellValue(fancyStuff, QualityCategory.Legendary) * p.count);
+                    var productHasQuality = recipe.products.Any(p => p.thingDef.HasComp(typeof(CompQuality)));
                     
                     var vpwLegendary = svLegendary / recipe.WorkAmountTotal(null);
                     var vpiLegendary = svLegendary / coiLegendary;
@@ -112,7 +112,7 @@ namespace SellValuePer
                         TooltipHandler.TipRegion(rect5, "Legendary:\n\n" +
                                                         string.Join("\n", variables.Select(t =>
                                                         {
-                                                            var sv = recipe.ProducedThingDef.GetSellValue(t, QualityCategory.Legendary);
+                                                            var sv = recipe.products.Sum(p => p.thingDef.GetSellValue(t, QualityCategory.Legendary) * p.count);
                                                             var vpw = sv / recipe.WorkAmountTotal(null);
                                                             var vpi = sv / recipe.GetIngredientCost(t);
                                                             var svr = Extensions.GetSellValueRating(vpi ?? throw new ArgumentNullException(), vpw);
