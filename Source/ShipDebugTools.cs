@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using HarmonyLib;
 using LudeonTK;
 using RimWorld;
 using Verse;
@@ -10,23 +9,6 @@ namespace SellValuePer
 {
     public static class ShipDebugTools
     {
-        private static readonly List<Message> _liveMessages = AccessTools.StaticFieldRefAccess<List<Message>>(typeof(Messages), "liveMessages");
-
-        private static void ResetMessages(Message[] messagesFromBefore)
-        {
-            _liveMessages.Clear();
-            _liveMessages.AddRange(messagesFromBefore);
-        }
-
-        private static void ResetLetters(HashSet<Letter> lettersToKeep)
-        {
-            foreach (var letter in Find.LetterStack.LettersListForReading.ToArray())
-            {
-                if (!lettersToKeep.Contains(letter))
-                    Find.LetterStack.RemoveLetter(letter);
-            }
-        }
-
         [DebugAction("Spawning", "Spawn Ships Until X", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.PlayingOnMap)]
         public static void SpawnShipsUntil()
         {
@@ -74,35 +56,57 @@ namespace SellValuePer
 
         private static void SpawnShipsUntil(TraderKindDef traderKind, ThingDef desiredDef, QualityCategory? qualityCategory)
         {
-            var messagesFromBefore = _liveMessages.ToArray();
-            var lettersFromBefore = Find.LetterStack.LettersListForReading.ToHashSet();
+	        foreach (var s in Find.CurrentMap.passingShipManager.passingShips.ToArray())
+		        s.Depart();
+            
+	        IncidentParms incidentParms = new IncidentParms();
+	        incidentParms.target = Find.CurrentMap;
+	        incidentParms.traderKind = traderKind;
+	        IncidentDefOf.OrbitalTraderArrival.Worker.TryExecute(incidentParms);
 
-            var i = 0;
-            for (; i < 1000; i++)
+	        var ship = Find.CurrentMap.passingShipManager.passingShips.OfType<TradeShip>().First();
+	        
+	        var thing = ThingMaker.MakeThing(desiredDef, GenStuff.RandomStuffFor(desiredDef));
+	        var compQuality = thing.TryGetComp<CompQuality>();
+            if (compQuality != null && qualityCategory != null)
             {
-                foreach (var ship in Find.CurrentMap.passingShipManager.passingShips.ToArray())
-                    ship.Depart();
+	            compQuality.SetQuality(qualityCategory.Value, ArtGenerationContext.Colony);
+            }
+            if (thing.def.Minifiable)
+            {
+	            thing = thing.MakeMinified();
+            }
+            if (thing.def.CanHaveFaction)
+            {
+	            if (thing.def.building != null && thing.def.building.isInsectCocoon)
+	            {
+		            thing.SetFaction(Faction.OfInsects);
+	            }
+	            else
+	            {
+		            thing.SetFaction(Faction.OfPlayerSilentFail);
+	            }
+            }
+            thing.stackCount = desiredDef.stackLimit;
+            ship.GetDirectlyHeldThings().TryAdd(thing);
 
-                IncidentParms incidentParms = new IncidentParms();
-                incidentParms.target = Find.CurrentMap;
-                incidentParms.traderKind = traderKind;
-                IncidentDefOf.OrbitalTraderArrival.Worker.TryExecute(incidentParms);
+            /*var i = 0;
+            while (true)
+            {
+	            if (ship.Goods.Any(t => t.GetInnerIfMinified().def == desiredDef && (qualityCategory == null || t.TryGetComp<CompQuality>().Quality == qualityCategory)))
+	            {
+		            Messages.Message($"Found good ship after {i + 1} spawns.", MessageTypeDefOf.SituationResolved);
+		            return;
+	            }
 
-                foreach (var ship in Find.CurrentMap.passingShipManager.passingShips.OfType<TradeShip>())
-                {
-                    if (ship.Goods.Any(t => t.GetInnerIfMinified().def == desiredDef && (qualityCategory == null || t.TryGetComp<CompQuality>().Quality == qualityCategory)))
-                    {
-                        ResetMessages(messagesFromBefore);
-                        ResetLetters(lettersFromBefore);
-                        Messages.Message($"Found good ship after {i + 1} spawns.", MessageTypeDefOf.SituationResolved);
-                        return;
-                    }
-                }
+	            if (i++ >= 1000)
+		            break;
+
+	            ship.GetDirectlyHeldThings().ClearAndDestroyContentsOrPassToWorld();
+	            ship.GenerateThings();
             }
 
-            ResetMessages(messagesFromBefore);
-            ResetLetters(lettersFromBefore);
-            Messages.Message($"Couldn't find ship after {i + 1} spawns.", MessageTypeDefOf.NegativeEvent);
+            Messages.Message($"Couldn't find ship after {i + 1} spawns.", MessageTypeDefOf.NegativeEvent);*/
         }
     }
 }
